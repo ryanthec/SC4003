@@ -1,29 +1,26 @@
 import os
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from environment import GRID_WIDTH, GRID_HEIGHT, WALLS, REWARDS
 
 # Ensure the output directory exists
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-def plot_utility_convergence(U_history, filename="utility_convergence.png"):
+def plot_utility_convergence(U_history, env, start_state, filename="utility_convergence.png"):
     """
     Plots the utility estimates of all states over the number of iterations.
-    Highlights the Start state (3, 4) for clarity.
+    Highlights the specific start_state for clarity.
     """
     iterations = range(len(U_history))
     plt.figure(figsize=(10, 6))
     
-    start_state = (3, 4)
-    
     # Iterate through all possible states
-    for x in range(1, GRID_WIDTH + 1):
-        for y in range(1, GRID_HEIGHT + 1):
+    for x in range(1, env.width + 1):
+        for y in range(1, env.height + 1):
             state = (x, y)
             
             # Skip walls as they do not have utility values
-            if state in WALLS:
+            if state in env.walls:
                 continue
                 
             # Extract the utility history for this specific state
@@ -31,32 +28,34 @@ def plot_utility_convergence(U_history, filename="utility_convergence.png"):
             
             # Highlight the Start state, fade the rest
             if state == start_state:
-                plt.plot(iterations, state_utilities, color='#E53935', linewidth=2.5, label='Start State (3, 4)')
+                plt.plot(iterations, state_utilities, color='#E53935', linewidth=2.5, label=f'Start State {start_state}')
             else:
                 plt.plot(iterations, state_utilities, color='gray', alpha=0.3, linewidth=1)
                 
-    plt.title("Utility Estimates vs. Number of Iterations", fontsize=14, fontweight='bold', pad=15)
+    plt.title(f"{env.name}: Utility Estimates vs. Iterations", fontsize=14, fontweight='bold', pad=15)
     plt.xlabel("Number of Iterations", fontsize=12)
     plt.ylabel("Utility Estimate", fontsize=12)
     plt.grid(True, linestyle='--', alpha=0.7)
-    plt.legend()
     
-    # Save the plot
+    # Only show legend if the start state exists in this maze
+    if start_state not in env.walls:
+        plt.legend()
+        
     plt.tight_layout()
     filepath = os.path.join(OUTPUT_DIR, filename)
     plt.savefig(filepath, dpi=300, bbox_inches='tight')
-    print(f"Convergence plot saved to: {filepath}")
+    print(f"  -> Convergence plot saved to: {filepath}")
     plt.close()
 
-def plot_policy_and_utilities(U, policy, filename="policy_grid.png"):
+def plot_policy_and_utilities(U, policy, env, filename="policy_grid.png"):
     """
     Generates a high-quality visual grid showing cell types, utilities, and policy arrows.
     """
-    fig, ax = plt.subplots(figsize=(GRID_WIDTH * 1.2, GRID_HEIGHT * 1.2))
+    fig, ax = plt.subplots(figsize=(env.width * 1.2, env.height * 1.2))
     
     # Invert y-axis so (1,1) is at the top-left
-    ax.set_ylim(GRID_HEIGHT + 0.5, 0.5)
-    ax.set_xlim(0.5, GRID_WIDTH + 0.5)
+    ax.set_ylim(env.height + 0.5, 0.5)
+    ax.set_xlim(0.5, env.width + 0.5)
     
     # Visual configuration
     colors = {
@@ -66,7 +65,7 @@ def plot_policy_and_utilities(U, policy, filename="policy_grid.png"):
         'normal': '#F5F5F5'    # Off-White
     }
     
-    # Arrow vectors based on our (x, y) top-left system
+    # Arrow vectors
     arrow_map = {
         'up': (0, -0.35),
         'down': (0, 0.35),
@@ -74,16 +73,16 @@ def plot_policy_and_utilities(U, policy, filename="policy_grid.png"):
         'right': (0.35, 0)
     }
 
-    for x in range(1, GRID_WIDTH + 1):
-        for y in range(1, GRID_HEIGHT + 1):
+    for x in range(1, env.width + 1):
+        for y in range(1, env.height + 1):
             state = (x, y)
             
-            # Determine cell color
-            if state in WALLS:
+            # Determine cell color based on the environment's rewards
+            if state in env.walls:
                 bg_color = colors['wall']
-            elif REWARDS[state] > 0:
+            elif env.rewards[state] > 0:
                 bg_color = colors['green']
-            elif REWARDS[state] < -0.05: # Less than base reward
+            elif env.rewards[state] < -0.05: 
                 bg_color = colors['orange']
             else:
                 bg_color = colors['normal']
@@ -93,15 +92,13 @@ def plot_policy_and_utilities(U, policy, filename="policy_grid.png"):
             ax.add_patch(rect)
 
             # Add utility text and policy arrows for non-wall states
-            if state not in WALLS:
-                # Decide text color based on background for contrast
+            if state not in env.walls:
                 text_color = 'white' if bg_color in [colors['green'], colors['orange']] else 'black'
                 
-                # Draw utility value at the bottom of the cell
-                ax.text(x, y + 0.35, f"{U[state]:+.2f}", ha='center', va='center', fontsize=9, color=text_color, fontweight='bold')
+                # Draw utility value
+                ax.text(x, y + 0.35, f"{U[state]:+.2f}", ha='center', va='center', fontsize=8, color=text_color, fontweight='bold')
                 
-                # Draw policy arrow in the center of the cell
-                # Because policy dictionary holds "U", "D", "L", "R", we map those back to full names
+                # Draw policy arrow
                 policy_action_char = policy[state]
                 char_map = {'U': 'up', 'D': 'down', 'L': 'left', 'R': 'right'}
                 
@@ -109,24 +106,22 @@ def plot_policy_and_utilities(U, policy, filename="policy_grid.png"):
                     full_action = char_map[policy_action_char]
                     dx, dy = arrow_map[full_action]
                     
-                    # Draw a crisp arrow starting from center of cell pointing in dx, dy direction
                     ax.annotate('', 
                                 xy=(x + dx, y + dy), 
-                                xytext=(x - dx*0.2, y - dy*0.2), # Start slightly offset from center
+                                xytext=(x - dx*0.2, y - dy*0.2), 
                                 arrowprops=dict(arrowstyle="->", color=text_color, lw=2, mutation_scale=15))
 
-    # Clean up axes for a polished look
+    # Clean up axes
     ax.set_aspect('equal')
-    ax.set_xticks(range(1, GRID_WIDTH + 1))
-    ax.set_yticks(range(1, GRID_HEIGHT + 1))
-    ax.xaxis.tick_top() # Move x-axis labels to the top to match our visual model
-    ax.tick_params(length=0) # Hide tick marks
+    ax.set_xticks(range(1, env.width + 1))
+    ax.set_yticks(range(1, env.height + 1))
+    ax.xaxis.tick_top()
+    ax.tick_params(length=0) 
     
-    plt.title("Optimal Policy & State Utilities", fontsize=16, fontweight='bold', pad=30)
+    plt.title(f"{env.name}: Optimal Policy & Utilities", fontsize=16, fontweight='bold', pad=30)
     plt.tight_layout()
     
-    # Save the visual grid
     filepath = os.path.join(OUTPUT_DIR, filename)
     plt.savefig(filepath, dpi=300, bbox_inches='tight')
-    print(f"Grid visual saved to: {filepath}")
+    print(f"  -> Grid visual saved to: {filepath}")
     plt.close()
