@@ -1,14 +1,8 @@
 from transition import get_transitions
 
-# ==========================================
-# 1. VALUE ITERATION
-# ==========================================
 
-def value_iteration(env, epsilon=1e-4):
-    """
-    Executes the Value Iteration algorithm.
-    Returns the final utilities and the utility history for plotting.
-    """
+# 1. VALUE ITERATION
+def value_iteration(env, epsilon=1e-6):
     # Initialize U as a dictionary for 1-based indexing
     U = { (x, y): 0.0 for x in range(1, env.width + 1) for y in range(1, env.height + 1) }
     U_history = []
@@ -22,7 +16,7 @@ def value_iteration(env, epsilon=1e-4):
             for y in range(1, env.height + 1):
                 state = (x, y)
                 
-                # Skip walls as they have no utility and cannot be entered
+                # Skip walls
                 if state in env.walls:
                     continue
                 
@@ -51,9 +45,7 @@ def value_iteration(env, epsilon=1e-4):
     return U, U_history
 
 def get_optimal_policy(U, env):
-    """
-    Extracts the optimal policy given a computed utility matrix.
-    """
+
     policy = { (x, y): ' ' for x in range(1, env.width + 1) for y in range(1, env.height + 1) }
     
     for x in range(1, env.width + 1):
@@ -81,14 +73,10 @@ def get_optimal_policy(U, env):
     return policy
 
 
-# ==========================================
-# 2. POLICY ITERATION
-# ==========================================
 
-def policy_evaluation(policy, U, env, epsilon=1e-4):
-    """
-    Calculates the utilities of a given policy iteratively.
-    """
+# 2. POLICY ITERATION
+def policy_evaluation(policy, U, env, epsilon=1e-6):
+
     U_eval = U.copy()
     
     while True:
@@ -118,15 +106,12 @@ def policy_evaluation(policy, U, env, epsilon=1e-4):
             
     return U_eval
 
-def policy_iteration(env):
-    """
-    Executes the Policy Iteration algorithm.
-    Returns the final utilities, the optimal policy, and the utility history for plotting.
-    """
+def policy_iteration(env):                                                                                                  
+
     # 1. Initialization
     U = { (x, y): 0.0 for x in range(1, env.width + 1) for y in range(1, env.height + 1) }
     
-    # Start with an arbitrary policy (e.g., everyone goes 'up')
+    # Start with an arbitrary policy (e.g., all 'up' arrows) and mark walls with 'W'
     policy = { (x, y): 'up' for x in range(1, env.width + 1) for y in range(1, env.height + 1) }
     for w in env.walls:
         policy[w] = 'W'
@@ -162,7 +147,7 @@ def policy_iteration(env):
                     for prob, next_state in get_transitions(state, action, env):
                         expected_u += prob * U[next_state]
                         
-                    # Add a tiny epsilon (1e-8) to prevent infinite loops from floating point precision limits
+                    # Add a tiny epsilon (1e-8) to prevent infinite loops
                     if expected_u > max_u + 1e-8: 
                         max_u = expected_u
                         best_action = action

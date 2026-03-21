@@ -17,8 +17,8 @@ class MazeEnv:
         for state in orange: rewards[state] = -1.0
         return rewards
 
+# Factory function to build maze environments based on task name
 def get_maze(task_name):
-    """Factory function to build and return the requested maze."""
     if task_name == 'task1':
         return MazeEnv(
             name="Task 1 (6x6)",
