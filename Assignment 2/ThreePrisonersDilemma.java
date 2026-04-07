@@ -151,6 +151,59 @@ public class ThreePrisonersDilemma {
 		}
 	}
 
+	class PeacemakerPlayer extends Player {
+		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
+			// Rule 1: Always start peaceful to establish the cartel
+			if (n < 2) return 0; 
+			
+			// Rule 2: The Forgiveness Threshold (Tit-for-Two-Tats)
+			// We only retaliate if a specific opponent defects two times in a row.
+			boolean op1Hostile = (oppHistory1[n-1] == 1 && oppHistory1[n-2] == 1);
+			boolean op2Hostile = (oppHistory2[n-1] == 1 && oppHistory2[n-2] == 1);
+			
+			if (op1Hostile || op2Hostile) {
+				// Rule 3: The Olive Branch (Truce Attempt)
+				// If we have been locked in a punishment cycle for 3 consecutive rounds,
+				// we offer an unconditional cooperation to try and break the death spiral.
+				if (n >= 3 && myHistory[n-1] == 1 && myHistory[n-2] == 1 && myHistory[n-3] == 1) {
+					return 0; // Offer the truce
+				}
+				
+				// Otherwise, they are actively hostile, so we must defend ourselves
+				return 1; 
+			}
+			
+			// Default to maintaining the peace
+			return 0; 
+		}
+	}
+
+	class HitAndRunPlayer extends Player {
+		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
+			// Rule 1: Build initial trust
+			if (n < 3) return 0; 
+			
+			// Rule 2: The Exploit
+			// Strike unexpectedly every 7th round to steal the 8-point payoff.
+			if (n % 7 == 0) return 1; 
+			
+			// Rule 3: The Apology (Absorbing the retaliation)
+			// We MUST cooperate for the two rounds immediately following our attack.
+			// n % 7 == 1: We absorb their T4T retaliation.
+			// n % 7 == 2: We solidify the reset back to mutual cooperation.
+			if (n % 7 == 1 || n % 7 == 2) return 0; 
+			
+			// Rule 4: Standard Defense
+			// For all other rounds, play normal Tit-for-Tat so we don't get 
+			// exploited by actual NastyPlayers.
+			if (oppHistory1[n-1] == 1 || oppHistory2[n-1] == 1) {
+				return 1;
+			}
+			
+			return 0; // Default to cooperation
+		}
+	}
+
 
 
 
@@ -271,7 +324,7 @@ public class ThreePrisonersDilemma {
 	 (strategies) in between matches. When you add your own strategy,
 	 you will need to add a new entry to makePlayer, and change numPlayers.*/
 	
-	int numPlayers = 10;
+	int numPlayers = 12;
 	Player makePlayer(int which) {
 		switch (which) {
 		case 0: return new NicePlayer();
@@ -284,6 +337,9 @@ public class ThreePrisonersDilemma {
 		case 7: return new PercentageTolerancePlayer();
 		case 8: return new PavlovPlayer();
 		case 9: return new MarkovPredictorPlayer();
+		case 10: return new PeacemakerPlayer();
+		case 11: return new HitAndRunPlayer();
+
 		}
 		throw new RuntimeException("Bad argument passed to makePlayer");
 	}
