@@ -1,7 +1,6 @@
-public class ThreePrisonersDilemma {
+public class main {
 	
-	/* 
-	 This Java program models the two-player Prisoner's Dilemma game.
+	/* This Java program models the two-player Prisoner's Dilemma game.
 	 We use the integer "0" to represent cooperation, and "1" to represent 
 	 defection. 
 	 
@@ -21,8 +20,7 @@ public class ThreePrisonersDilemma {
 		{{8,5},  //payoffs when first player defects, second coops
 	     {5,2}}};//payoffs when first and second players defect
 	
-	/* 
-	 So payoff[i][j][k] represents the payoff to player 1 when the first
+	/* So payoff[i][j][k] represents the payoff to player 1 when the first
 	 player's action is i, the second player's action is j, and the
 	 third player's action is k.
 	 
@@ -34,6 +32,8 @@ public class ThreePrisonersDilemma {
 	
 	
 	abstract class Player {
+		String customName = null; // Added to allow numbered names
+		
 		// This procedure takes in the number of rounds elapsed so far (n), and 
 		// the previous plays in the match, and returns the appropriate action.
 		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
@@ -42,6 +42,7 @@ public class ThreePrisonersDilemma {
 		
 		// Used to extract the name of this player class.
 		final String name() {
+			if (customName != null) return customName; // Return numbered name if it exists
 			String result = getClass().getName();
 			return result.substring(result.indexOf('$')+1);
 		}
@@ -49,7 +50,6 @@ public class ThreePrisonersDilemma {
 
 
 	/* My own custom agents here */
-
 
 	class CautiousTriggerPlayer extends Player {
 		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
@@ -203,12 +203,8 @@ public class ThreePrisonersDilemma {
 			return 0; // Default to cooperation
 		}
 	}
-
-
-
-
 	
-	/* Here are four simple strategies: */
+	/* Simple strategies */
 	
 	class NicePlayer extends Player {
 		//NicePlayer always cooperates
@@ -320,34 +316,79 @@ public class ThreePrisonersDilemma {
 		return result;
 	}
 	
-	/* The procedure makePlayer is used to reset each of the Players 
-	 (strategies) in between matches. When you add your own strategy,
-	 you will need to add a new entry to makePlayer, and change numPlayers.*/
-	
-	int numPlayers = 12;
-	Player makePlayer(int which) {
-		switch (which) {
-		case 0: return new NicePlayer();
-		case 1: return new NastyPlayer();
-		case 2: return new RandomPlayer();
-		case 3: return new TolerantPlayer();
-		case 4: return new FreakyPlayer();
-		case 5: return new T4TPlayer();
-		case 6: return new CautiousTriggerPlayer();
-		case 7: return new PercentageTolerancePlayer();
-		case 8: return new PavlovPlayer();
-		case 9: return new MarkovPredictorPlayer();
-		case 10: return new PeacemakerPlayer();
-		case 11: return new HitAndRunPlayer();
 
+	/* POOL INITIALIZATION AND AGENT CREATION */
+	
+	int numPlayers;
+	int[] playerTypeMap;
+	int[] playerInstanceMap;
+	
+	void initializePool() {
+		// SET YOUR TOURNAMENT ECOSYSTEM HERE!
+		// Change the numbers to set how many of each agent enter the tournament.
+		int[] agentCounts = {
+			5, // 0: T4TPlayer                 (Will create T4TPlayer 1, T4TPlayer 2, etc.)
+			4, // 1: CautiousTriggerPlayer
+			2, // 2: PercentageTolerancePlayer
+			3, // 3: PavlovPlayer
+			1, // 4: MarkovPredictorPlayer
+			2, // 5: PeacemakerPlayer
+			5, // 6: HitAndRunPlayer
+			0, // 7: NicePlayer
+			0, // 8: NastyPlayer
+			0  // 9: RandomPlayer
+		};
+		
+		numPlayers = 0;
+		for (int count : agentCounts) {
+			numPlayers += count;
 		}
-		throw new RuntimeException("Bad argument passed to makePlayer");
+		
+		playerTypeMap = new int[numPlayers];
+		playerInstanceMap = new int[numPlayers];
+		
+		int index = 0;
+		for (int type = 0; type < agentCounts.length; type++) {
+			for (int i = 0; i < agentCounts[type]; i++) {
+				playerTypeMap[index] = type;
+				playerInstanceMap[index] = i + 1; // Instance numbers start at 1
+				index++;
+			}
+		}
+	}
+	
+	Player makePlayer(int index) {
+		int type = playerTypeMap[index];
+		int instanceId = playerInstanceMap[index];
+		Player p = null;
+		
+		switch (type) {
+			case 0: p = new T4TPlayer(); break;
+			case 1: p = new CautiousTriggerPlayer(); break;
+			case 2: p = new PercentageTolerancePlayer(); break;
+			case 3: p = new PavlovPlayer(); break;
+			case 4: p = new MarkovPredictorPlayer(); break;
+			case 5: p = new PeacemakerPlayer(); break;
+			case 6: p = new HitAndRunPlayer(); break;
+			case 7: p = new NicePlayer(); break;
+			case 8: p = new NastyPlayer(); break;
+			case 9: p = new RandomPlayer(); break;
+			default: throw new RuntimeException("Bad argument passed to makePlayer");
+		}
+		
+		// Extract base name and append the instance ID (e.g. "T4TPlayer 1")
+		String baseName = p.getClass().getName();
+		baseName = baseName.substring(baseName.indexOf('$') + 1);
+		p.customName = baseName + " " + instanceId;
+		
+		return p;
 	}
 	
 	/* Finally, the remaining code actually runs the tournament. */
 	
 	public static void main (String[] args) {
-		ThreePrisonersDilemma instance = new ThreePrisonersDilemma();
+		main instance = new main();
+		instance.initializePool(); // Initialize the dynamic pool first!
 		instance.runTournament();
 	}
 	
@@ -396,5 +437,4 @@ public class ThreePrisonersDilemma {
 		
 	} // end of runTournament()
 	
-} // end of class PrisonersDilemma
-
+} // end of class main
