@@ -1,4 +1,4 @@
-public class main2 {
+public class main3 {
 	
 	static int[][][] payoff = 
 	{  
@@ -53,40 +53,6 @@ public class main2 {
 	/* ==========================================
 	   COMPETITIVE CURATED AGENTS
 	   ========================================== */
-	class CautiousTriggerPlayer extends Player {
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			for (int i = 0; i < n; i++) {
-				if (oppHistory1[i] == 1 && oppHistory2[i] == 1) return 1; 
-			}
-			return 0; 
-		}
-	}
-
-	class PercentageTolerancePlayer extends Player {
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			if (n < 5) return 0; 
-			for (int i = 1; i < n; i++) {
-				boolean doubleDefectNow = (oppHistory1[i] == 1 && oppHistory2[i] == 1);
-				boolean doubleDefectPrev = (oppHistory1[i-1] == 1 && oppHistory2[i-1] == 1);
-				if (doubleDefectNow && doubleDefectPrev) return 1; 
-			}
-			int coop1 = 0, coop2 = 0;
-			for (int i = 0; i < n; i++) {
-				if (oppHistory1[i] == 0) coop1++;
-				if (oppHistory2[i] == 0) coop2++;
-			}
-			float rate1 = (float) coop1 / n;
-			float rate2 = (float) coop2 / n;
-			
-			float threshold;
-            if (n >= 85) threshold = 0.72f;
-            else if (n >= 70) threshold = 0.65f;
-            else threshold = 0.60f;
-
-            if (rate1 >= threshold || rate2 >= threshold) return 0;
-            else return 1;
-		}
-	}
 
 	class PavlovPlayer extends Player {
 		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
@@ -362,36 +328,20 @@ public class main2 {
 	
 	Player makePlayer(int which) {
 		switch (which) {
-			case 0: return new T4TPlayer();
-			case 1: return new CautiousTriggerPlayer();
-			case 2: return new PercentageTolerancePlayer();
+			case 0 :return new CheongEnWei_Ryan_Player();
+			case 1 :return new T4TPlayer();
+			case 2 :return new TFTTPlayer();
 			case 3: return new PavlovPlayer();
-			case 4: return new MarkovPredictorPlayer();
-			case 5: return new PeacemakerPlayer();
-			case 6: return new HitAndRunPlayer();
-			case 7: return new TolerantPlayer();
-			case 8: return new NicePlayer();
-			case 9: return new NastyPlayer();
-			case 10: return new RandomPlayer();
-            case 11: return new StrictTFTPlayer();
-            case 12: return new GenerousTFTPlayer();
-            case 13: return new TFTTPlayer();
-            case 14: return new MajorityRulePlayer();
-            case 15: return new SoftTriggerPlayer();
-            case 16: return new GradualPlayer();
-            case 17: return new DefectionRatePlayer();
-            case 18: return new EarlyBetrayalPlayer();
-            case 19: return new TrendDetectorPlayer();
-            case 20: return new MirrorWorstPlayer();
-            case 21: return new TriangulatorPlayer();
-            case 22: return new ReputationExploiterPlayer();
-            case 23: return new CheongEnWei_Ryan_Player();
+			case 4: return new NicePlayer();
+			case 5: return new NastyPlayer();
+			case 6: return new TolerantPlayer();
+			case 7: return new HitAndRunPlayer();
 		}
 		throw new RuntimeException("Bad argument passed to makePlayer");
 	}
 	
 	public static void main (String[] args) {
-		main2 instance = new main2();
+		main3 instance = new main3();
 		instance.runSimulation();
 	}
 	
@@ -401,10 +351,10 @@ public class main2 {
 		// ==========================================
 		int totalSimulations = 1000; 
 
-		// Array containing exactly ONE of every agent ID (0 through 23).
+		// Array containing exactly ONE of every agent ID (0 through 12).
 		// By using this directly as the ecosystem, we guarantee a perfectly flat, 
 		// unbiased tournament where every agent appears exactly once per simulation.
-		int[] activeAgents = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
+		int[] activeAgents = {0, 1, 2, 3, 4, 5, 6, 7};
 		int poolSize = activeAgents.length;
 		// ==========================================
 		

@@ -1,18 +1,5 @@
 public class main {
 	
-	/* This Java program models the two-player Prisoner's Dilemma game.
-	 We use the integer "0" to represent cooperation, and "1" to represent 
-	 defection. 
-	 
-	 Recall that in the 2-players dilemma, U(DC) > U(CC) > U(DD) > U(CD), where
-	 we give the payoff for the first player in the list. We want the three-player game 
-	 to resemble the 2-player game whenever one player's response is fixed, and we
-	 also want symmetry, so U(CCD) = U(CDC) etc. This gives the unique ordering
-	 
-	 U(DCC) > U(CCC) > U(DDC) > U(CDC) > U(DDD) > U(CDD)
-	 
-	 The payoffs for player 1 are given by the following matrix: */
-	
 	static int[][][] payoff = 
 	{  
 		{{6,3},  //payoffs when first and second players cooperate 
@@ -20,64 +7,31 @@ public class main {
 		{{8,5},  //payoffs when first player defects, second coops
 	     {5,2}}};//payoffs when first and second players defect
 	
-	/* So payoff[i][j][k] represents the payoff to player 1 when the first
-	 player's action is i, the second player's action is j, and the
-	 third player's action is k.
-	 
-	 In this simulation, triples of players will play each other repeatedly in a
-	 'match'. A match consists of about 100 rounds, and your score from that match
-	 is the average of the payoffs from each round of that match. For each round, your
-	 strategy is given a list of the previous plays (so you can remember what your 
-	 opponent did) and must compute the next action.  */
-	
-	
 	abstract class Player {
-		String customName = null; // Added to allow numbered names
-		
-		// This procedure takes in the number of rounds elapsed so far (n), and 
-		// the previous plays in the match, and returns the appropriate action.
 		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
 			throw new RuntimeException("You need to override the selectAction method.");
 		}
 		
-		// Used to extract the name of this player class.
 		final String name() {
-			if (customName != null) return customName; // Return numbered name if it exists
 			String result = getClass().getName();
 			return result.substring(result.indexOf('$')+1);
 		}
 	}
 
-
-	/* My own custom agents here */
-
-	class CautiousTriggerPlayer extends Player {
+	/* ==========================================
+	   YOUR CUSTOM AGENT
+	   ========================================== */
+	class CheongEnWei_Ryan_Player extends Player {
 		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			// Scan history to see if BOTH opponents ever defected in the same round
-			for (int i = 0; i < n; i++) {
-				if (oppHistory1[i] == 1 && oppHistory2[i] == 1) {
-					return 1; // Trigger activated: defect forever
-				}
-			}
-			return 0; // Otherwise, remain cooperative
-		}
-	}
-
-	class PercentageTolerancePlayer extends Player {
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			// Rule 1: Always cooperate for the first 5 moves
 			if (n < 5) return 0; 
 			
-			// Rule 2: If we experience 2 successive rounds of double-defection, defect forever
+			// The 2-Strike Rule
 			for (int i = 1; i < n; i++) {
-				boolean doubleDefectNow = (oppHistory1[i] == 1 && oppHistory2[i] == 1);
-				boolean doubleDefectPrev = (oppHistory1[i-1] == 1 && oppHistory2[i-1] == 1);
-				if (doubleDefectNow && doubleDefectPrev) {
-					return 1; 
-				}
+				boolean op1Chronic = (oppHistory1[i] == 1 && oppHistory1[i-1] == 1);
+				boolean op2Chronic = (oppHistory2[i] == 1 && oppHistory2[i-1] == 1);
+				if (op1Chronic || op2Chronic) return 1; 
 			}
 			
-			// Rule 3: Check if at least 1 opponent has a >= 60% cooperation rate
 			int coop1 = 0, coop2 = 0;
 			for (int i = 0; i < n; i++) {
 				if (oppHistory1[i] == 0) coop1++;
@@ -87,206 +41,55 @@ public class main {
 			float rate1 = (float) coop1 / n;
 			float rate2 = (float) coop2 / n;
 			
-			if (rate1 >= 0.6f || rate2 >= 0.6f) {
-				return 0; // Cooperate if at least one player is mostly nice
-			} else {
-				return 1; // Defect if both fall below 60%
-			}
+			float threshold;
+			if (n >= 85) threshold = 0.72f;
+			else if (n >= 70) threshold = 0.65f;
+			else threshold = 0.60f;
+
+			if (rate1 >= threshold || rate2 >= threshold) return 0;
+			else return 1;
 		}
 	}
 
-
-	class PavlovPlayer extends Player {
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			if (n == 0) return 0; // Start with cooperation
-			
-			int myLast = myHistory[n-1];
-			int op1Last = oppHistory1[n-1];
-			int op2Last = oppHistory2[n-1];
-			
-			// Calculate our exact score from the last round using the 3D matrix
-			int score = payoff[myLast][op1Last][op2Last];
-			
-			// Win-Stay (High payoff: 5, 6, 8) | Lose-Shift (Low payoff: 0, 2, 3)
-			if (score >= 5) {
-				return myLast;     // Strategy is working, stay the course
-			} else {
-				return 1 - myLast; // Strategy failed, shift to the opposite action
-			}
-		}
-	}
-
-
-	class MarkovPredictorPlayer extends Player {
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			if (n < 2) return 0; // Need a little data to start predicting
-			
-			int pred1 = predictNextMove(n, oppHistory1);
-			int pred2 = predictNextMove(n, oppHistory2);
-			
-			// Simulate expected payoff for both possible actions
-			int expectedCoop = payoff[0][pred1][pred2];
-			int expectedDefect = payoff[1][pred1][pred2];
-			
-			// Maximize expected value
-			if (expectedDefect > expectedCoop) return 1;
-			return 0;
-		}
-		
-		// Helper function to predict the next token in the sequence
-		int predictNextMove(int n, int[] oppHistory) {
-			int lastMove = oppHistory[n-1];
-			int countCoop = 0, countDefect = 0;
-			
-			// Look for bigrams: instances of [lastMove] -> [nextMove]
-			for (int i = 0; i < n - 1; i++) {
-				if (oppHistory[i] == lastMove) {
-					if (oppHistory[i+1] == 0) countCoop++;
-					else countDefect++;
-				}
-			}
-			
-			if (countDefect > countCoop) return 1;
-			return 0; // Default to assuming cooperation if tied or no data
-		}
-	}
-
-	class PeacemakerPlayer extends Player {
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			// Rule 1: Always start peaceful to establish the cartel
-			if (n < 2) return 0; 
-			
-			// Rule 2: The Forgiveness Threshold (Tit-for-Two-Tats)
-			// We only retaliate if a specific opponent defects two times in a row.
-			boolean op1Hostile = (oppHistory1[n-1] == 1 && oppHistory1[n-2] == 1);
-			boolean op2Hostile = (oppHistory2[n-1] == 1 && oppHistory2[n-2] == 1);
-			
-			if (op1Hostile || op2Hostile) {
-				// Rule 3: The Olive Branch (Truce Attempt)
-				// If we have been locked in a punishment cycle for 3 consecutive rounds,
-				// we offer an unconditional cooperation to try and break the death spiral.
-				if (n >= 3 && myHistory[n-1] == 1 && myHistory[n-2] == 1 && myHistory[n-3] == 1) {
-					return 0; // Offer the truce
-				}
-				
-				// Otherwise, they are actively hostile, so we must defend ourselves
-				return 1; 
-			}
-			
-			// Default to maintaining the peace
-			return 0; 
-		}
-	}
-
-	class HitAndRunPlayer extends Player {
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			// Rule 1: Build initial trust
-			if (n < 3) return 0; 
-			
-			// Rule 2: The Exploit
-			// Strike unexpectedly every 7th round to steal the 8-point payoff.
-			if (n % 7 == 0) return 1; 
-			
-			// Rule 3: The Apology (Absorbing the retaliation)
-			// We MUST cooperate for the two rounds immediately following our attack.
-			// n % 7 == 1: We absorb their T4T retaliation.
-			// n % 7 == 2: We solidify the reset back to mutual cooperation.
-			if (n % 7 == 1 || n % 7 == 2) return 0; 
-			
-			// Rule 4: Standard Defense
-			// For all other rounds, play normal Tit-for-Tat so we don't get 
-			// exploited by actual NastyPlayers.
-			if (oppHistory1[n-1] == 1 || oppHistory2[n-1] == 1) {
-				return 1;
-			}
-			
-			return 0; // Default to cooperation
-		}
-	}
-	
-	/* Simple strategies */
-	
+	/* ==========================================
+	   BASELINE ASSIGNMENT AGENTS
+	   ========================================== */
 	class NicePlayer extends Player {
-		//NicePlayer always cooperates
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			return 0; 
-		}
+		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) { return 0; }
 	}
-	
 	class NastyPlayer extends Player {
-		//NastyPlayer always defects
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			return 1; 
-		}
+		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) { return 1; }
 	}
-	
 	class RandomPlayer extends Player {
-		//RandomPlayer randomly picks his action each time
 		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			if (Math.random() < 0.5)
-				return 0;  //cooperates half the time
-			else
-				return 1;  //defects half the time
+			return (Math.random() < 0.5) ? 0 : 1; 
 		}
 	}
-	
 	class TolerantPlayer extends Player {
-		//TolerantPlayer looks at his opponents' histories, and only defects
-		//if at least half of the other players' actions have been defects
 		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			int opponentCoop = 0;
-			int opponentDefect = 0;
+			int opponentCoop = 0, opponentDefect = 0;
 			for (int i=0; i<n; i++) {
-				if (oppHistory1[i] == 0)
-					opponentCoop = opponentCoop + 1;
-				else
-					opponentDefect = opponentDefect + 1;
+				if (oppHistory1[i] == 0) opponentCoop++; else opponentDefect++;
+				if (oppHistory2[i] == 0) opponentCoop++; else opponentDefect++;
 			}
-			for (int i=0; i<n; i++) {
-				if (oppHistory2[i] == 0)
-					opponentCoop = opponentCoop + 1;
-				else
-					opponentDefect = opponentDefect + 1;
-			}
-			if (opponentDefect > opponentCoop)
-				return 1;
-			else
-				return 0;
+			return (opponentDefect > opponentCoop) ? 1 : 0;
 		}
 	}
-	
 	class FreakyPlayer extends Player {
-		//FreakyPlayer determines, at the start of the match, 
-		//either to always be nice or always be nasty. 
-		//Note that this class has a non-trivial constructor.
 		int action;
-		FreakyPlayer() {
-			if (Math.random() < 0.5)
-				action = 0;  //cooperates half the time
-			else
-				action = 1;  //defects half the time
-		}
-		
-		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			return action;
-		}	
+		FreakyPlayer() { action = (Math.random() < 0.5) ? 0 : 1; }
+		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) { return action; }	
 	}
-
 	class T4TPlayer extends Player {
-		//Picks a random opponent at each play, 
-		//and uses the 'tit-for-tat' strategy against them 
 		int selectAction(int n, int[] myHistory, int[] oppHistory1, int[] oppHistory2) {
-			if (n==0) return 0; //cooperate by default
-			if (Math.random() < 0.5)
-				return oppHistory1[n-1];
-			else
-				return oppHistory2[n-1];
+			if (n==0) return 0; 
+			return (Math.random() < 0.5) ? oppHistory1[n-1] : oppHistory2[n-1];
 		}	
 	}
 
-	
-	/* In our tournament, each pair of strategies will play one match against each other. 
-	 This procedure simulates a single match and returns the scores. */
+	/* ==========================================
+	   ENGINE LOGIC
+	   ========================================== */
 	float[] scoresOfMatch(Player A, Player B, Player C, int rounds) {
 		int[] HistoryA = new int[0], HistoryB = new int[0], HistoryC = new int[0];
 		float ScoreA = 0, ScoreB = 0, ScoreC = 0;
@@ -295,146 +98,151 @@ public class main {
 			int PlayA = A.selectAction(i, HistoryA, HistoryB, HistoryC);
 			int PlayB = B.selectAction(i, HistoryB, HistoryC, HistoryA);
 			int PlayC = C.selectAction(i, HistoryC, HistoryA, HistoryB);
-			ScoreA = ScoreA + payoff[PlayA][PlayB][PlayC];
-			ScoreB = ScoreB + payoff[PlayB][PlayC][PlayA];
-			ScoreC = ScoreC + payoff[PlayC][PlayA][PlayB];
+			ScoreA += payoff[PlayA][PlayB][PlayC];
+			ScoreB += payoff[PlayB][PlayC][PlayA];
+			ScoreC += payoff[PlayC][PlayA][PlayB];
 			HistoryA = extendIntArray(HistoryA, PlayA);
 			HistoryB = extendIntArray(HistoryB, PlayB);
 			HistoryC = extendIntArray(HistoryC, PlayC);
 		}
-		float[] result = {ScoreA/rounds, ScoreB/rounds, ScoreC/rounds};
-		return result;
+		return new float[]{ScoreA/rounds, ScoreB/rounds, ScoreC/rounds};
 	}
 	
-//	This is a helper function needed by scoresOfMatch.
 	int[] extendIntArray(int[] arr, int next) {
 		int[] result = new int[arr.length+1];
-		for (int i=0; i<arr.length; i++) {
-			result[i] = arr[i];
-		}
+		for (int i=0; i<arr.length; i++) result[i] = arr[i];
 		result[result.length-1] = next;
 		return result;
 	}
 	
-
-	/* POOL INITIALIZATION AND AGENT CREATION */
-	
-	int numPlayers;
-	int[] playerTypeMap;
-	int[] playerInstanceMap;
-	
-	void initializePool() {
-		// SET YOUR TOURNAMENT ECOSYSTEM HERE!
-		// Change the numbers to set how many of each agent enter the tournament.
-		int[] agentCounts = {
-			5, // 0: T4TPlayer                 (Will create T4TPlayer 1, T4TPlayer 2, etc.)
-			4, // 1: CautiousTriggerPlayer
-			2, // 2: PercentageTolerancePlayer
-			3, // 3: PavlovPlayer
-			1, // 4: MarkovPredictorPlayer
-			2, // 5: PeacemakerPlayer
-			5, // 6: HitAndRunPlayer
-			0, // 7: NicePlayer
-			0, // 8: NastyPlayer
-			0  // 9: RandomPlayer
-		};
-		
-		numPlayers = 0;
-		for (int count : agentCounts) {
-			numPlayers += count;
+	// Pool specifically locked for the Baseline Evaluation
+	int numPlayers = 7;
+	Player makePlayer(int which) {
+		switch (which) {
+			case 0: return new CheongEnWei_Ryan_Player();
+			case 1: return new NicePlayer();
+			case 2: return new NastyPlayer();
+			case 3: return new RandomPlayer();
+			case 4: return new TolerantPlayer();
+			case 5: return new FreakyPlayer();
+			case 6: return new T4TPlayer();
 		}
-		
-		playerTypeMap = new int[numPlayers];
-		playerInstanceMap = new int[numPlayers];
-		
-		int index = 0;
-		for (int type = 0; type < agentCounts.length; type++) {
-			for (int i = 0; i < agentCounts[type]; i++) {
-				playerTypeMap[index] = type;
-				playerInstanceMap[index] = i + 1; // Instance numbers start at 1
-				index++;
-			}
-		}
+		throw new RuntimeException("Bad argument passed to makePlayer");
 	}
-	
-	Player makePlayer(int index) {
-		int type = playerTypeMap[index];
-		int instanceId = playerInstanceMap[index];
-		Player p = null;
-		
-		switch (type) {
-			case 0: p = new T4TPlayer(); break;
-			case 1: p = new CautiousTriggerPlayer(); break;
-			case 2: p = new PercentageTolerancePlayer(); break;
-			case 3: p = new PavlovPlayer(); break;
-			case 4: p = new MarkovPredictorPlayer(); break;
-			case 5: p = new PeacemakerPlayer(); break;
-			case 6: p = new HitAndRunPlayer(); break;
-			case 7: p = new NicePlayer(); break;
-			case 8: p = new NastyPlayer(); break;
-			case 9: p = new RandomPlayer(); break;
-			default: throw new RuntimeException("Bad argument passed to makePlayer");
-		}
-		
-		// Extract base name and append the instance ID (e.g. "T4TPlayer 1")
-		String baseName = p.getClass().getName();
-		baseName = baseName.substring(baseName.indexOf('$') + 1);
-		p.customName = baseName + " " + instanceId;
-		
-		return p;
-	}
-	
-	/* Finally, the remaining code actually runs the tournament. */
 	
 	public static void main (String[] args) {
 		main instance = new main();
-		instance.initializePool(); // Initialize the dynamic pool first!
-		instance.runTournament();
+		instance.runBaselineEvaluation();
 	}
 	
-	boolean verbose = true; // set verbose = false if you get too much text output
-	
-	void runTournament() {
-		float[] totalScore = new float[numPlayers];
+	void runBaselineEvaluation() {
+		int totalSimulations = 1000;
+		
+		// Metrics Tracking
+		double[] globalTotalScore = new double[numPlayers];
+		long[] globalMatchesPlayed = new long[numPlayers];
+		int[] top1Count = new int[numPlayers];
+		int[] top3Count = new int[numPlayers];
+		int[] rankSum = new int[numPlayers];
 
-		// This loop plays each triple of players against each other.
-		// Note that we include duplicates: two copies of your strategy will play once
-		// against each other strategy, and three copies of your strategy will play once.
+		System.out.println("Running Baseline Evaluation: " + totalSimulations + " Iterations...\n");
 
-		for (int i=0; i<numPlayers; i++) for (int j=i; j<numPlayers; j++) for (int k=j; k<numPlayers; k++) {
+		for (int sim = 0; sim < totalSimulations; sim++) {
+			float[] currentIterationScore = new float[numPlayers];
+			int[] currentIterationMatches = new int[numPlayers];
 
-			Player A = makePlayer(i); // Create a fresh copy of each player
-			Player B = makePlayer(j);
-			Player C = makePlayer(k);
-			int rounds = 90 + (int)Math.rint(20 * Math.random()); // Between 90 and 110 rounds
-			float[] matchResults = scoresOfMatch(A, B, C, rounds); // Run match
-			totalScore[i] = totalScore[i] + matchResults[0];
-			totalScore[j] = totalScore[j] + matchResults[1];
-			totalScore[k] = totalScore[k] + matchResults[2];
-			if (verbose)
-				System.out.println(A.name() + " scored " + matchResults[0] +
-						" points, " + B.name() + " scored " + matchResults[1] + 
-						" points, and " + C.name() + " scored " + matchResults[2] + " points.");
-		}
-		int[] sortedOrder = new int[numPlayers];
-		// This loop sorts the players by their score.
-		for (int i=0; i<numPlayers; i++) {
-			int j=i-1;
-			for (; j>=0; j--) {
-				if (totalScore[i] > totalScore[sortedOrder[j]]) 
-					sortedOrder[j+1] = sortedOrder[j];
-				else break;
+			// Run every possible triple combination
+			for (int i = 0; i < numPlayers; i++) {
+				for (int j = i; j < numPlayers; j++) {
+					for (int k = j; k < numPlayers; k++) {
+						Player A = makePlayer(i);
+						Player B = makePlayer(j);
+						Player C = makePlayer(k);
+						
+						int rounds = 90 + (int)Math.rint(20 * Math.random());
+						float[] matchResults = scoresOfMatch(A, B, C, rounds);
+						
+						currentIterationScore[i] += matchResults[0];
+						currentIterationScore[j] += matchResults[1];
+						currentIterationScore[k] += matchResults[2];
+						
+						currentIterationMatches[i]++;
+						currentIterationMatches[j]++;
+						currentIterationMatches[k]++;
+					}
+				}
 			}
-			sortedOrder[j+1] = i;
+
+			// Calculate averages for this single iteration
+			double[] iterationAverages = new double[numPlayers];
+			for (int i = 0; i < numPlayers; i++) {
+				iterationAverages[i] = currentIterationScore[i] / currentIterationMatches[i];
+				
+				// Add to global totals for the final absolute average
+				globalTotalScore[i] += currentIterationScore[i];
+				globalMatchesPlayed[i] += currentIterationMatches[i];
+			}
+
+			// Rank players for this iteration
+			int[] iterationRanks = getRanks(iterationAverages);
+			
+			for (int i = 0; i < numPlayers; i++) {
+				int rank = iterationRanks[i];
+				rankSum[i] += rank;
+				if (rank == 1) top1Count[i]++;
+				if (rank <= 3) top3Count[i]++;
+			}
+		}
+
+		// Print Results
+		System.out.println("==========================================================================================");
+		System.out.printf("%-30s | %-12s | %-12s | %-12s | %-12s\n", "Agent Name", "Avg Score", "Top-1 Rate", "Top-3 Rate", "Avg Rank");
+		System.out.println("==========================================================================================");
+		
+		// Sort final printout by Global Average Score
+		int[] finalSortedOrder = new int[numPlayers];
+		double[] finalAvgScores = new double[numPlayers];
+		for (int i = 0; i < numPlayers; i++) {
+			finalAvgScores[i] = globalTotalScore[i] / globalMatchesPlayed[i];
+			finalSortedOrder[i] = i;
 		}
 		
-		// Finally, print out the sorted results.
-		if (verbose) System.out.println();
-		System.out.println("Tournament Results");
-		for (int i=0; i<numPlayers; i++) 
-			System.out.println(makePlayer(sortedOrder[i]).name() + ": " 
-				+ totalScore[sortedOrder[i]] + " points.");
-		
-	} // end of runTournament()
-	
-} // end of class main
+		for (int i = 1; i < numPlayers; i++) {
+			int key = finalSortedOrder[i];
+			int j = i - 1;
+			while (j >= 0 && finalAvgScores[finalSortedOrder[j]] < finalAvgScores[key]) {
+				finalSortedOrder[j + 1] = finalSortedOrder[j];
+				j = j - 1;
+			}
+			finalSortedOrder[j + 1] = key;
+		}
+
+		for (int i = 0; i < numPlayers; i++) {
+			int p = finalSortedOrder[i];
+			String name = makePlayer(p).name();
+			double avgScore = finalAvgScores[p];
+			double top1Rate = (top1Count[p] / (double)totalSimulations) * 100;
+			double top3Rate = (top3Count[p] / (double)totalSimulations) * 100;
+			double avgRank = rankSum[p] / (double)totalSimulations;
+
+			System.out.printf("%-30s | %-12.4f | %-11.1f%% | %-11.1f%% | %-12.2f\n", 
+					name, avgScore, top1Rate, top3Rate, avgRank);
+		}
+		System.out.println("==========================================================================================");
+	}
+
+	// Helper function to rank an array of scores (1 is highest, handles ties by giving same rank)
+	int[] getRanks(double[] scores) {
+		int[] ranks = new int[scores.length];
+		for (int i = 0; i < scores.length; i++) {
+			int rank = 1;
+			for (int j = 0; j < scores.length; j++) {
+				if (scores[j] > scores[i]) {
+					rank++;
+				}
+			}
+			ranks[i] = rank;
+		}
+		return ranks;
+	}
+}
